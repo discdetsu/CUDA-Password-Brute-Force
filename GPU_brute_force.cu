@@ -70,7 +70,7 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
 __global__
 void bruteforce()
 {
-    char pass[] = "ca";
+    char pass[] = "caaaaa";
     char alphabet_set[] = "abc";
     int passLen = strlen(pass);
     int alphabet_length = strlen(alphabet_set);
@@ -78,7 +78,7 @@ void bruteforce()
 
     if (passLen == 1){
         for (int i = 0; i < alphabet_length; i++){
-            printf("%c\n",alphabet_set[i]);
+            printf("%c\n",alphabet_set[i]); //call kernel <<<1,1>>
         }
     }
     else if (passLen == 2){
@@ -94,14 +94,36 @@ void bruteforce()
                             alphabet_set[(int)(blockIdx.x % alphabet_length)]);
         }
     }
-    else {
+    else if (passLen == 4){
         for (int i = 0; i < alphabet_length; i++){
-            printf("%c%c%c%c\n",alphabet_set[i], 
-                                alphabet_set[threadIdx.x],
+            printf("%c%c%c%c\n", alphabet_set[i], 
+                                alphabet_set[threadIdx.x], 
                                 alphabet_set[(int)(blockIdx.x % alphabet_length)],
                                 alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)]);
+                
         }
-    } //and so on..
+    }    
+    else if (passLen == 5){
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c%c%c%c%c\n", alphabet_set[i], 
+                                alphabet_set[threadIdx.x], 
+                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length)) % alphabet_length)]);
+                
+        }
+    }
+    else if (passLen == 6){
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c%c%c%c%c%c\n", alphabet_set[i], 
+                                alphabet_set[threadIdx.x], 
+                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length)) % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length*alphabet_length)) % alphabet_length)]);
+                
+        }
+    }
         
     
 }
@@ -121,7 +143,7 @@ int main()
     // cudaFree(d_pass);
 
 
-    bruteforce<<<1,3>>>();
+    bruteforce<<<3*3*3*3*3*3,3>>>();
 
     return -1;
 }
