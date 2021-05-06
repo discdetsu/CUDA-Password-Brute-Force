@@ -1,19 +1,32 @@
 #include <iostream>
 #include <string>
+#include <iomanip>
 #include <ctime>
 #include <curand.h>
 #include <curand_kernel.h>
 
 using namespace std;
 
-const string ALPHABET_SET = "0123456789!@#$%^&*abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const string ALPHABET_SET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 // device utility functions
 __device__
-int strcmp(char* str1, char* str2, int length);
+int c_strcmp(char* str1, char* str2, int length)
+{
+    int flag = 0;
+
+	for (int i = 0; i<length; i++) {
+		if (str1[i] != str2[i]) {
+			flag = 1;
+			break;
+		}
+	}
+
+	return flag;
+}
 
 __device__
-void strcpy(char *dest, char *src)
+void c_strcpy(char *dest, char *src)
 {
     int i = 0;
 	do {
@@ -22,7 +35,7 @@ void strcpy(char *dest, char *src)
 }
 
 __device__
-int strlen(char *string)
+int c_strlen(char *string)
 {
     int count = 0;
 	while (string[count] != '\0') {
@@ -39,10 +52,10 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
     extern __shared__ char alphabet[];
 
     char test[10];
-    int passLen = strlen(pass);
-    int alphabet_length = strlen(alphabet_set);
+    int passLen = c_strlen(pass);
+    int a_l = c_strlen(alphabet_set);
 
-    for (int i = 0; i<alphabet_length; i++)
+    for (int i = 0; i<a_l; i++)
         alphabet[i] = alphabet_set[i];
 
     // int digit[8];
@@ -57,7 +70,7 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
     curand_init(seed,0,0,&state);
 
     for(int i = 0; i < passLen; i++){
-        rand = curand(&state) % alphabet_length;
+        rand = curand(&state) % a_l;
         test[i] = alphabet[rand];
     }
     test[passLen] ='\0';
@@ -68,59 +81,82 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
    
 }
 __global__
-void bruteforce()
+void bruteforce(char* pass, char* alphabet_set, char* generated_pass)
 {
-    char pass[] = "caaaaa";
-    char alphabet_set[] = "abc";
-    int passLen = strlen(pass);
-    int alphabet_length = strlen(alphabet_set);
+    int passLen = c_strlen(pass);
+    int a_l = c_strlen(alphabet_set); // Alphabet length
+   
 
-
-    if (passLen == 1){
-        for (int i = 0; i < alphabet_length; i++){
-            printf("%c\n",alphabet_set[i]); //call kernel <<<1,1>>
+    if (passLen == 1){ //call kernel by <<<1,1>>
+        for (int i = 0; i < a_l; i++){
+            printf("%c\n",alphabet_set[i]); 
         }
     }
-    else if (passLen == 2){
-        for (int i = 0; i < alphabet_length; i++){
+    else if (passLen == 2){ //call kernel by <<<1,len>>>
+        for (int i = 0; i < a_l; i++){
             printf("%c%c\n",alphabet_set[i], 
-                            alphabet_set[threadIdx.x]); //call kernel <<<1,3>>>
+                            alphabet_set[threadIdx.x]); 
         }
     }
-    else if (passLen == 3){
-        for (int i = 0; i < alphabet_length; i++){
-            printf("%c%c%c\n",alphabet_set[i], 
+    else if (passLen == 3){ //call kernel by <<<len,len>>>
+        for (int i = 0; i < a_l; i++){
+            printf("%c%c%c\n", alphabet_set[i], 
                             alphabet_set[threadIdx.x],
-                            alphabet_set[(int)(blockIdx.x % alphabet_length)]);
+                            alphabet_set[(int)(blockIdx.x % a_l)]);
         }
     }
-    else if (passLen == 4){
-        for (int i = 0; i < alphabet_length; i++){
+    else if (passLen == 4){ //call kernel by <<<len^4,len>>>
+        for (int i = 0; i < a_l; i++){
             printf("%c%c%c%c\n", alphabet_set[i], 
                                 alphabet_set[threadIdx.x], 
-                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)]);
+                                alphabet_set[(int)(blockIdx.x % a_l)],
+                                alphabet_set[(int)((blockIdx.x / a_l ) % a_l)]);
                 
         }
     }    
-    else if (passLen == 5){
-        for (int i = 0; i < alphabet_length; i++){
+    else if (passLen == 5){ //call kernel by <<<len^5,len>>>
+        for (int i = 0; i < a_l; i++){
             printf("%c%c%c%c%c\n", alphabet_set[i], 
                                 alphabet_set[threadIdx.x], 
-                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length)) % alphabet_length)]);
+                                alphabet_set[(int)(blockIdx.x % a_l)],
+                                alphabet_set[(int)((blockIdx.x / a_l ) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l)) % a_l)]);
                 
         }
     }
-    else if (passLen == 6){
-        for (int i = 0; i < alphabet_length; i++){
+    else if (passLen == 6){ //call kernel by <<<len^6,len>>>
+        for (int i = 0; i < a_l; i++){
             printf("%c%c%c%c%c%c\n", alphabet_set[i], 
                                 alphabet_set[threadIdx.x], 
-                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length)) % alphabet_length)],
-                                alphabet_set[(int)((blockIdx.x / (alphabet_length*alphabet_length*alphabet_length)) % alphabet_length)]);
+                                alphabet_set[(int)(blockIdx.x % a_l)],
+                                alphabet_set[(int)((blockIdx.x / a_l ) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l)) % a_l)]);
+                
+        }
+    }
+    else if (passLen == 7){ //call kernel by <<<len^7,len>>>
+        for (int i = 0; i < a_l; i++){
+            printf("%c%c%c%c%c%c%c\n", alphabet_set[i], 
+                                alphabet_set[threadIdx.x], 
+                                alphabet_set[(int)(blockIdx.x % a_l)],
+                                alphabet_set[(int)((blockIdx.x / a_l ) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l*a_l)) % a_l)]);
+                
+        }
+    }
+    else if (passLen == 8){ //call kernel by <<<len^8,len>>>
+        for (int i = 0; i < a_l; i++){
+            printf("%c%c%c%c%c%c%c%c\n", alphabet_set[i], 
+                                alphabet_set[threadIdx.x], 
+                                alphabet_set[(int)(blockIdx.x % a_l)],
+                                alphabet_set[(int)((blockIdx.x / a_l ) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l*a_l)) % a_l)],
+                                alphabet_set[(int)((blockIdx.x / (a_l*a_l*a_l*a_l*a_l)) % a_l)]);
                 
         }
     }
@@ -128,22 +164,41 @@ void bruteforce()
     
 }
 
+
+
 //driver code
 int main()
 {
-    // string pass = "abc";
-    // char *d_pass, *d_alphabet;
-    // cudaMalloc((void**)&d_pass, sizeof(char)*pass.length() + 1);
-    // cudaMalloc((void**)&d_alphabet, sizeof(char)*ALPHABET_SET.length() + 1);
-    // cudaMemcpy(d_pass, pass.c_str(), sizeof(char)*pass.length() + 1, cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_alphabet, ALPHABET_SET.c_str(), sizeof(char)*ALPHABET_SET.length() + 1, cudaMemcpyHostToDevice);
-    // random_password<<<1,1, sizeof(char) * ALPHABET_SET.length()>>>(d_pass, d_alphabet, time(NULL));
-    
-    // cudaFree(d_alphabet);
-    // cudaFree(d_pass);
 
+    string password;
 
-    bruteforce<<<3*3*3*3*3*3,3>>>();
+    cout << "Please enter password to crack: ";
+    cin >> password;
+
+    char* d_pass;
+    char* d_alphabet_set;
+    char* d_generated_pass;
+    char* result = (char*)malloc(sizeof(char)*password.length() + 1);
+
+    cudaMalloc((void**)&d_pass, sizeof(char)*password.length() + 1);
+    cudaMalloc((void**)&d_alphabet_set, sizeof(char)*ALPHABET_SET.length() + 1);
+    cudaMalloc((void**)&d_generated_pass, sizeof(char)*password.length() + 1);
+    cudaMemcpy(d_pass, password.c_str(), sizeof(char)*password.length() + 1, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_alphabet_set, ALPHABET_SET.c_str(), sizeof(char)*ALPHABET_SET.length() + 1, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_generated_pass, result, sizeof(char)*password.length() + 1, cudaMemcpyHostToDevice);
+
+    // while (true)
+    // {
+        int a_l = ALPHABET_SET.length();
+        int p_l = password.length();
+             
+        bruteforce<<<1,1>>>(d_pass, d_alphabet_set, d_generated_pass);
+
+        cudaMemcpy(result, d_generated_pass, sizeof(char)*password.length() + 1, cudaMemcpyDeviceToHost);
+
+        free(result);
+
+    // }
 
     return -1;
 }
