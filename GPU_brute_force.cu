@@ -10,25 +10,25 @@ const string ALPHABET_SET = "0123456789!@#$%^&*abcdefghijklmnopqrstuvwxyzABCDEFG
 
 // device utility functions
 __device__
-int cuda_strcmp(char* str1, char* str2, int length);
+int strcmp(char* str1, char* str2, int length);
+
 __device__
-void cuda_strcpy(char *dest, char *src);
+void strcpy(char *dest, char *src)
+{
+    int i = 0;
+	do {
+		dest[i] = src[i];
+	} while (src[++i] != '\0');
+}
+
 __device__
-int cuda_strlen(char *string)
+int strlen(char *string)
 {
     int count = 0;
 	while (string[count] != '\0') {
 		++count;
 	}
 	return count;
-}
-__device__
-bool check(char *pass, char c1, char c2, char c3){
-
-    if (c1 == pass[0] && c2 == pass[1] && c3 == pass[2])
-        return true;
-
-    return false;
 }
 
 //kernel
@@ -39,16 +39,22 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
     extern __shared__ char alphabet[];
 
     char test[10];
-    int passLen = cuda_strlen(pass);
-    int alphabet_length = cuda_strlen(alphabet_set);
+    int passLen = strlen(pass);
+    int alphabet_length = strlen(alphabet_set);
 
     for (int i = 0; i<alphabet_length; i++)
         alphabet[i] = alphabet_set[i];
 
+    // int digit[8];
+    // digit[0] = blockIdx.x;
+
+    printf("Block ID: %d\n", blockIdx.x);
+    printf("Thread ID: %d\n", threadIdx.x);
+
+    // for radom index from alphabet set range
     curandState_t state;
     int rand;
     curand_init(seed,0,0,&state);
-    
 
     for(int i = 0; i < passLen; i++){
         rand = curand(&state) % alphabet_length;
@@ -59,18 +65,43 @@ void random_password(char* pass, char* alphabet_set, unsigned int seed)
     for(int i = 0; i < passLen; i++){
         printf("%c", test[i]);
     }
-
-
-
+   
 }
 __global__
-void bruteforce(char* pass)
+void bruteforce()
 {
-    
-        printf("Block ID: %d, Thread ID: %d, Block Dimension: %d\n", blockIdx.x, threadIdx.x, blockDim.x);
-        printf("Index: %d\n",  threadIdx.x + blockDim.x *  blockIdx.x);
-  
-        // printf("%c%c%c\n", (char)c1, (char)blockIdx.x, (char)threadIdx.x + 31);
+    char pass[] = "ca";
+    char alphabet_set[] = "abc";
+    int passLen = strlen(pass);
+    int alphabet_length = strlen(alphabet_set);
+
+
+    if (passLen == 1){
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c\n",alphabet_set[i]);
+        }
+    }
+    else if (passLen == 2){
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c%c\n",alphabet_set[i], 
+                            alphabet_set[threadIdx.x]); //call kernel <<<1,3>>>
+        }
+    }
+    else if (passLen == 3){
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c%c%c\n",alphabet_set[i], 
+                            alphabet_set[threadIdx.x],
+                            alphabet_set[(int)(blockIdx.x % alphabet_length)]);
+        }
+    }
+    else {
+        for (int i = 0; i < alphabet_length; i++){
+            printf("%c%c%c%c\n",alphabet_set[i], 
+                                alphabet_set[threadIdx.x],
+                                alphabet_set[(int)(blockIdx.x % alphabet_length)],
+                                alphabet_set[(int)((blockIdx.x / alphabet_length ) % alphabet_length)]);
+        }
+    } //and so on..
         
     
 }
@@ -78,15 +109,19 @@ void bruteforce(char* pass)
 //driver code
 int main()
 {
-    string pass = "abc";
-    char *d_pass, *d_alphabet;
-    cudaMalloc((void**)&d_pass, sizeof(char)*pass.length() + 1);
-    cudaMalloc((void**)&d_alphabet, sizeof(char)*ALPHABET_SET.length() + 1);
-    cudaMemcpy(d_pass, pass.c_str(), sizeof(char)*pass.length() + 1, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_alphabet, ALPHABET_SET.c_str(), sizeof(char)*ALPHABET_SET.length() + 1, cudaMemcpyHostToDevice);
-    random_password<<<1,1, sizeof(char) * ALPHABET_SET.length()>>>(d_pass, d_alphabet, time(NULL));
+    // string pass = "abc";
+    // char *d_pass, *d_alphabet;
+    // cudaMalloc((void**)&d_pass, sizeof(char)*pass.length() + 1);
+    // cudaMalloc((void**)&d_alphabet, sizeof(char)*ALPHABET_SET.length() + 1);
+    // cudaMemcpy(d_pass, pass.c_str(), sizeof(char)*pass.length() + 1, cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_alphabet, ALPHABET_SET.c_str(), sizeof(char)*ALPHABET_SET.length() + 1, cudaMemcpyHostToDevice);
+    // random_password<<<1,1, sizeof(char) * ALPHABET_SET.length()>>>(d_pass, d_alphabet, time(NULL));
+    
+    // cudaFree(d_alphabet);
+    // cudaFree(d_pass);
 
-    cudaFree(d_alphabet);
-    cudaFree(d_pass);
+
+    bruteforce<<<1,3>>>();
+
     return -1;
 }
